@@ -5,18 +5,60 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import me.itzg.helpers.cache.ApiCachingDisabled;
+import me.itzg.helpers.curseforge.model.CurseForgeFile;
 import me.itzg.helpers.curseforge.model.CurseForgeMod;
 import me.itzg.helpers.http.SharedFetch.Options;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import reactor.core.publisher.Flux;
 
 @WireMockTest
 class CurseForgeApiClientTest {
+
+    @Test
+    void fallbackUrlEncodesSpaces(@TempDir Path tempDir) throws IOException {
+
+        // Create a file, such that client.download skipsExisting
+        // Don't set downloadUrl so client uses fallBackUrl 
+        final Path outputFile = Files.createFile(tempDir.resolve("downloaded.jar"));
+        final CurseForgeFile file = new CurseForgeFile();
+        file.setId(5228909);
+        file.setFileName("Butchersdelight beta 1.20.1 2.1.0.jar");
+
+        assertThat(captureFallbackUrl(file, outputFile).getRawPath())
+            .isEqualTo("/files/5228/909/Butchersdelight%20beta%201.20.1%202.1.0.jar");
+    }
+
+    private URI captureFallbackUrl(CurseForgeFile file, Path outputFile) {
+        final AtomicReference<URI> requestedUri = new AtomicReference<>();
+
+        try (CurseForgeApiClient client = new CurseForgeApiClient(
+            "https://example.invalid",
+            "key",
+            Options.builder().build(),
+            "432",
+            new ApiCachingDisabled()
+        )) {
+            client.download(
+                file, 
+                outputFile, 
+                // Capture URI from FileDownloadStatusHandler
+                (status, uri, path) -> requestedUri.set(uri)
+                ).block();
+        }
+
+        return requestedUri.get();
+    }
 
     @Test
     void apiKeyHeaderIsTrimmed(WireMockRuntimeInfo wmInfo) {

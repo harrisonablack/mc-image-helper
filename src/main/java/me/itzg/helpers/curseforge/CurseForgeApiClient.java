@@ -276,10 +276,12 @@ public class CurseForgeApiClient implements AutoCloseable {
             idRemainder = idStr;
         }
 
-        return downloadFallbackUriBuilder.resolve(
-            "/files/{id}/{subId}/{filename}",
-            idFolder, idRemainder, cfFile.getFileName()
+        final URI baseUri = downloadFallbackUriBuilder.resolve(
+            "/files/{id}/{subId}",
+            idFolder, idRemainder
         );
+
+        return normalizeDownloadUrl(baseUri + "/" + cfFile.getFileName());
     }
 
     public Mono<Path> downloadTemp(CurseForgeFile cfFile, String suffix, FileDownloadStatusHandler handler) {

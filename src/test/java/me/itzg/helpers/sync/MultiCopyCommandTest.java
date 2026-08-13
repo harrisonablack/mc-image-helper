@@ -13,14 +13,16 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicReference;
 import me.itzg.helpers.files.Manifests;
+import me.itzg.helpers.http.FailedRequestException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
 
-class MulitCopyCommandTest {
+class MultiCopyCommandTest {
 
     private final RandomStringUtils randomStringUtils = RandomStringUtils.insecure();
     @TempDir
@@ -37,7 +39,7 @@ class MulitCopyCommandTest {
             final Path srcFile = writeLine(tempDir, "source.txt", "content");
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     srcFile.toString()
@@ -56,7 +58,7 @@ class MulitCopyCommandTest {
             final String manifestId = randomStringUtils.nextAlphabetic(10);
 
             {
-                final int exitCode = new CommandLine(new MulitCopyCommand())
+                final int exitCode = new CommandLine(new MultiCopyCommand())
                     .execute(
                         "--to", destDir.toString(),
                         "--manifest-id", manifestId,
@@ -72,7 +74,7 @@ class MulitCopyCommandTest {
             }
 
             {
-                final int exitCode = new CommandLine(new MulitCopyCommand())
+                final int exitCode = new CommandLine(new MultiCopyCommand())
                     .execute(
                         "--to", destDir.toString(),
                         "--manifest-id", manifestId
@@ -95,7 +97,7 @@ class MulitCopyCommandTest {
             final Path srcFile = writeLine(tempDir, "source2.txt", "content");
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "dest<" +srcFile.toString()
@@ -115,7 +117,7 @@ class MulitCopyCommandTest {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     String.join(",", srcTxt.toString(), srcJar.toString())
@@ -137,7 +139,7 @@ class MulitCopyCommandTest {
             final Path destDir1 = tempDir.resolve("dest1");
             final Path destDir2 = tempDir.resolve("dest2");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     String.join(",",
@@ -162,7 +164,7 @@ class MulitCopyCommandTest {
             final Path destDir1 = tempDir.resolve("dest1");
             final Path destDir2 = tempDir.resolve("dest2");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     String.join(",",
@@ -193,7 +195,7 @@ class MulitCopyCommandTest {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     "--file-is-listing",
@@ -221,7 +223,7 @@ class MulitCopyCommandTest {
                 "dest2<" + srcJar.toString()
             ));
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "--file-is-listing",
@@ -246,7 +248,7 @@ class MulitCopyCommandTest {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     srcDir.toString()
@@ -274,7 +276,7 @@ void recursiveDirectoryCopy() throws IOException {
 
     Path destDir = tempDir.resolve("dest");
 
-    int exitCode = new CommandLine(new MulitCopyCommand())
+    int exitCode = new CommandLine(new MultiCopyCommand())
             .execute(
                     "--to",
                     destDir.toString(),
@@ -301,7 +303,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "dest<" + srcDir
@@ -323,7 +325,7 @@ void recursiveDirectoryCopy() throws IOException {
             final Path destDir = tempDir.resolve("dest");
             final Path destTxt = destDir.resolve("one.txt");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     srcDir.toString()
@@ -339,7 +341,7 @@ void recursiveDirectoryCopy() throws IOException {
             writeLine(srcDir, "one.txt", "updated");
 
             assertThat(
-                new CommandLine(new MulitCopyCommand())
+                new CommandLine(new MultiCopyCommand())
                     .execute(
                         "--to", destDir.toString(),
                         srcDir.toString()
@@ -358,7 +360,7 @@ void recursiveDirectoryCopy() throws IOException {
             final Path destDir = tempDir.resolve("dest");
             final Path destTxt = destDir.resolve("one.txt");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     "--scope", "managedWithManifest",
@@ -373,7 +375,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             Files.delete(srcTxt);
             assertThat(
-                new CommandLine(new MulitCopyCommand())
+                new CommandLine(new MultiCopyCommand())
                     .execute(
                         "--to", destDir.toString(),
                         "--scope", "managedWithManifest",
@@ -396,7 +398,7 @@ void recursiveDirectoryCopy() throws IOException {
             final Path destTxt = destDir1.resolve("one.txt");
             final Path destJar = destDir2.resolve("two.jar");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "--scope", "managedWithManifest",
@@ -415,7 +417,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             Files.delete(srcTxt);
             assertThat(
-                new CommandLine(new MulitCopyCommand())
+                new CommandLine(new MultiCopyCommand())
                     .execute(
                         "--to", tempDir.toString(),
                         "--scope", "managedWithManifest",
@@ -437,7 +439,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     "--glob", "*.jar",
@@ -461,7 +463,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     wmInfo.getHttpBaseUrl() + "/file.jar"
@@ -478,7 +480,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "dest<" + wmInfo.getHttpBaseUrl() + "/file.jar"
@@ -501,7 +503,7 @@ void recursiveDirectoryCopy() throws IOException {
                 wmInfo.getHttpBaseUrl() + "/file2.jar"
             ));
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     "--file-is-listing",
@@ -528,7 +530,7 @@ void recursiveDirectoryCopy() throws IOException {
                 "dest2<" +wmInfo.getHttpBaseUrl() + "/file2.jar"
             ));
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "--file-is-listing",
@@ -553,7 +555,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     "--file-is-listing",
@@ -579,7 +581,7 @@ void recursiveDirectoryCopy() throws IOException {
             stubRemoteSrc("file1.jar", "one");
             stubRemoteSrc("file2.jar", "two");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "--file-is-listing",
@@ -606,7 +608,7 @@ void recursiveDirectoryCopy() throws IOException {
 
             final Path destDir = tempDir.resolve("dest");
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir.toString(),
                     "--file-is-listing",
@@ -634,7 +636,7 @@ void recursiveDirectoryCopy() throws IOException {
                     "dest2<" +  srcJar + "\n"
             );
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", tempDir.toString(),
                     "--file-is-listing",
@@ -665,7 +667,7 @@ void recursiveDirectoryCopy() throws IOException {
                     destDir3 + "<" +  srcYaml + "\n"
             );
 
-            final int exitCode = new CommandLine(new MulitCopyCommand())
+            final int exitCode = new CommandLine(new MultiCopyCommand())
                 .execute(
                     "--to", destDir1.toString(),
                     "--file-is-listing",

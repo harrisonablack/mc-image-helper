@@ -41,7 +41,7 @@ import reactor.core.scheduler.Schedulers;
 @Command(name = "mcopy", description = "Multi-source file copy operation with with managed cleanup. "
     + "Supports auto-detected sourcing from file list, directories, and URLs")
 @Slf4j
-public class MulitCopyCommand implements Callable<Integer> {
+public class MultiCopyCommand implements Callable<Integer> {
     @SuppressWarnings("unused")
     @Option(names = {"--help", "-h"}, usageHelp = true)
     boolean showHelp;
@@ -93,14 +93,30 @@ public class MulitCopyCommand implements Callable<Integer> {
 
     private final static String destinationDelimiter = "<";
 
+    private final static int PREFETCH = 1;
+
+    @Option(names = "--max-concurrent-sources", defaultValue = "10", description = "Maximum number of sources to process concurrently")
+    int maxConccurentSources;
+
+
     @Override
     public Integer call() throws Exception {
 
+        if (maxConccurentSources <= 0) {
+            throw new InvalidParameterException("Max Concurrent sources must be greater than 0");
+        }
+
         try (SharedFetch sharedFetch = Fetch.sharedFetch("mcopy", sharedFetchArgs.options())) {
+
             final List<Path> results = Flux.fromIterable(sources)
                 .map(String::trim)
                 .filter(s -> !s.isEmpty())
-                .flatMap(source -> processSource(sharedFetch, source, fileIsListingOption, dest))
+                .flatMapDelayError(
+                    source -> processSource(sharedFetch, source, fileIsListingOption, dest),
+                    maxConccurentSources,
+                    PREFETCH
+                )
+                .doOnError(error -> log.error("Failed to process source: {}", error.getMessage()))
                 .collectList()
                 .block();
 
@@ -185,11 +201,12 @@ public class MulitCopyCommand implements Callable<Integer> {
                     final List<String> lines = Files.readAllLines(path);
                     return Flux.fromIterable(lines)
                         .filter(this::isListingLine)
-                        .flatMap(src -> processSource(sharedFetch, src,
-                            // avoid recursive file-listing processing
-                            false,
-                            destination
-                        ));
+                        .flatMapDelayError(
+                            src -> processSource(sharedFetch, src, false, destination),
+                            maxConccurentSources,
+                            PREFETCH
+                        )
+                        .doOnError(error -> log.error("Failed to process source: {}", error.getMessage()));
                 } catch (IOException e) {
                     return Mono.error(new GenericException("Failed to read file listing from " + path));
                 }
@@ -326,7 +343,12 @@ public class MulitCopyCommand implements Callable<Integer> {
                     .flatMapMany(content -> Flux.just(content.split("\\r?\\n")))
                     .filter(this::isListingLine)
             )
-            .flatMap(url -> processSource(sharedFetch, url, false, destination))
+            .flatMapDelayError(
+                url -> processSource(sharedFetch, url, false, destination),
+                maxConccurentSources,
+                PREFETCH
+            )
+            .doOnError(error -> log.error("Failed to process source: {}", error.getMessage()))
             .doOnTerminate(sharedFetch::close)
             .checkpoint("Processing remote listing at " + source, true);
     }

@@ -1,6 +1,9 @@
 package me.itzg.helpers.versions;
 
 import java.net.URI;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import me.itzg.helpers.errors.InvalidParameterException;
@@ -73,6 +76,25 @@ public class MinecraftVersionsApi {
                     return Mono.just(new MinecraftJarInfo(server.getUrl(), server.getSize(), ChecksumAlgo.SHA1, server.getSha1()));
                 }
                 return Mono.empty();
+            });
+    }
+    /**
+     * Returns a list of all Minecraft releases excluding snapshots, betas / alphas 
+     *
+     * @return List of all Minecraft releases
+     */
+    public Mono<List<Version>> getAllReleases() {
+        return sharedFetch.fetch(
+               manifestUrl 
+            )
+            .toObject(VersionManifestV2.class)
+            .assemble()
+            .flatMap(m -> {
+                return Mono.just(
+                        m.getVersions()
+                        .stream()
+                        .filter(v -> v.getType().equals(VersionManifestV2.VersionType.release))
+                        .collect(Collectors.toList()));
             });
     }
 }

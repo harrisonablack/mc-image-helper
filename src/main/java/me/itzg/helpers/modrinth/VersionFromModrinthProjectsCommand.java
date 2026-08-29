@@ -267,16 +267,22 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             final Set<Integer> supportedProjects = versionMatrix.getOrDefault(release.getId(), Collections.emptySet());
             final List<String> missingProjects = missingProjectNames(refs, supportedProjects);
 
+            if (missingProjects.isEmpty()) {
+                log.debug("{}: {}/{} projects",
+                    release.getId(),
+                    supportedProjects.size(),
+                    refs.size()
+                );
+
+                return release.getId();
+            }
+
             log.debug("{}: {}/{} projects; missing: {}",
                 release.getId(),
                 supportedProjects.size(),
                 refs.size(),
                 String.join(", ", missingProjects)
             );
-
-            if (missingProjects.isEmpty()) {
-                return release.getId();
-            }
         }
 
         return null;

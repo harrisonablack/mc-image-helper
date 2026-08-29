@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
@@ -138,9 +139,21 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
      * @return List of project references to use for version resolution.
      */
     private List<ProjectRef> parseProjects() {
+
+        if (projects == null || projects.isEmpty()) {
+            throw new InvalidParameterException("No Modrinth projects provided, please provide at least one Modrinth project");
+        }
+
         final List<ProjectRef> refs = projects.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(ref -> !ref.isEmpty())
             .map(ProjectRef::parse)
             .collect(Collectors.toList());
+
+        if (refs.isEmpty()) {
+            throw new InvalidParameterException("No Modrinth projects parsed successfully, please ensure projects follow \"<loader>:<project ID>|<slug>\" and are delimited by commas");
+        }
 
         final List<ProjectRef> requiredRefs = refs.stream()
             .filter(ref -> !ref.isOptional())

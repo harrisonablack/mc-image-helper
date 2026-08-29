@@ -16,7 +16,6 @@ import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
-import me.itzg.helpers.errors.GenericException;
 import me.itzg.helpers.errors.InvalidParameterException;
 import me.itzg.helpers.http.SharedFetch;
 import me.itzg.helpers.http.SharedFetchArgs;
@@ -125,6 +124,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                 .block();
 
             if (version == null) {
+                log.error("Failed to find a compatible Minecraft version across all projects");
                 return ExitCode.SOFTWARE;
             }
 
@@ -195,19 +195,13 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
      * @param officialReleases Minecraft releases
      * @param refs Required Modrinth projects
      * @param versions List of supported Versions for each project
-     * @return Compatbile Minecraft release if supported, or an error if no compatible release
+     * @return Compatible Minecraft release if supported, or an empty result if no compatible release
      */
     private Mono<String> calculateVersion(List<VersionManifestV2.Version> officialReleases, List<ProjectRef> refs, List<List<String>> versions) {
         final Map<String, Set<Integer>> versionMatrix = buildVersionMatrix(versions);
         final String version = findHighestCompleteRelease(officialReleases, refs, versionMatrix);
 
-        if (version != null) {
-            return Mono.just(version);
-        }
-
-        log.error(describeNoCompatibleRelease(officialReleases, refs, versionMatrix));
-
-        return Mono.empty();
+        return Mono.justOrEmpty(version);
     }
 
     /**
@@ -272,58 +266,20 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
         for (VersionManifestV2.Version release : officialReleases) {
             final Set<Integer> supportedProjects = versionMatrix.getOrDefault(release.getId(), Collections.emptySet());
             final List<String> missingProjects = missingProjectNames(refs, supportedProjects);
+
+            log.debug("{}: {}/{} projects; missing: {}",
+                release.getId(),
+                supportedProjects.size(),
+                refs.size(),
+                String.join(", ", missingProjects)
+            );
+
             if (missingProjects.isEmpty()) {
-                log.debug("Minecraft release {} selected; supported by all {} effective projects",
-                    release.getId(), refs.size());
                 return release.getId();
             }
-
-            log.trace("Minecraft release {} rejected; missing support from: {}",
-                release.getId(), String.join(", ", missingProjects));
         }
 
         return null;
-    }
-
-
-    /**
-     * Build diagnostic message to describe failure to find compatbile release
-     *
-     * @param officialReleases Minecraft releases
-     * @param refs Required Modrinth projects
-     * @param versionMatrix List of versions supported per project
-     * @return a description of why no fully compatible release was found
-     */
-    private String describeNoCompatibleRelease(
-        List<VersionManifestV2.Version> officialReleases,
-        List<ProjectRef> refs,
-        Map<String, Set<Integer>> versionMatrix
-    ) {
-        final List<String> logs = new ArrayList<>();
-
-        for (VersionManifestV2.Version release : officialReleases) {
-            final Set<Integer> supportedProjects = versionMatrix.getOrDefault(release.getId(), Collections.emptySet());
-            final int coverage = supportedProjects.size();
-            final List<String> missingProjects = missingProjectNames(refs, supportedProjects);
-
-                logs.add(String.format(
-                    "  %s: %d/%d projects; missing: %s",
-                    release.getId(),
-                    coverage,
-                    refs.size(),
-                    String.join(", ", missingProjects)
-                ));
-
-        }
-
-        if (logs.isEmpty()) {
-            return "Unable to find a compatible Minecraft release across given projects"
-                + "\nNo effective project supports an official release";
-        }
-
-        return "Unable to find a compatible Minecraft release across given projects"
-            + "\nClosest matches:\n"
-            + String.join("\n", logs);
     }
 
     /**

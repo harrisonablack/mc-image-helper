@@ -145,9 +145,67 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                         return version;
                     }
                 }
+    /**
+     * Build diagnostic message to describe failure to find compatbile release
+     *
+     * @param officialReleases Minecraft releases
+     * @param refs Required Modrinth projects
+     * @param versionMatrix List of versions supported per project
+     * @return a description of why no fully compatible release was found
+     */
+    private String describeNoCompatibleRelease(
+        List<VersionManifestV2.Version> officialReleases,
+        List<ProjectRef> refs,
+        Map<String, Set<Integer>> versionMatrix
+    ) {
+        int maxCoverage = 0;
+        final List<String> closestMatches = new ArrayList<>();
+
+        for (VersionManifestV2.Version release : officialReleases) {
+            final Set<Integer> supportedProjects = versionMatrix.getOrDefault(release.getId(), Collections.emptySet());
+            final int coverage = supportedProjects.size();
+            if (coverage > maxCoverage) {
+                maxCoverage = coverage;
+                closestMatches.clear();
+            }
+
+            if (coverage == maxCoverage && coverage > 0) {
+                final List<String> missingProjects = missingProjectNames(refs, supportedProjects);
+
+                closestMatches.add(String.format(
+                    "  %s: %d/%d projects; missing: %s",
+                    release.getId(),
+                    coverage,
+                    refs.size(),
+                    String.join(", ", missingProjects)
+                ));
             }
         }
 
-        return null;
+        if (closestMatches.isEmpty()) {
+            return "Unable to find a compatible Minecraft release across given projects"
+                + "\nNo effective project supports an official release";
+        }
+
+        return "Unable to find a compatible Minecraft release across given projects"
+            + "\nClosest matches:\n"
+            + String.join("\n", closestMatches);
+    }
+
+    /**
+     * Finds the project names missing support for a Minecraft release.
+     *
+     * @param refs Required Modrinth projects
+     * @param supportedProjects the indexes of projects supporting the release
+     * @return Projects not in {@code supportedProjects}
+     */
+    private List<String> missingProjectNames(List<ProjectRef> refs, Set<Integer> supportedProjects) {
+        final List<String> missingProjects = new ArrayList<>();
+        for (int projectIndex = 0; projectIndex < refs.size(); projectIndex++) {
+            if (!supportedProjects.contains(projectIndex)) {
+                missingProjects.add(refs.get(projectIndex).getIdOrSlug());
+            }
+        }
+        return missingProjects;
     }
 }

@@ -59,6 +59,12 @@ import reactor.core.publisher.Mono;
 @Command(name = "version-from-modrinth-projects", description = "Finds a compatible Minecraft version across given Modrinth projects")
 @Slf4j
 public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
+    private URI minecraftManifestUrl;
+
+    VersionFromModrinthProjectsCommand setMinecraftManifestUrl(URI minecraftManifestUrl) {
+        this.minecraftManifestUrl = minecraftManifestUrl;
+        return this;
+    }
 
     @Option(
         names = "--projects",
@@ -105,6 +111,9 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             SharedFetch minecraftVersionsFetch = new SharedFetch("minecraft-versions-api", sharedFetchArgs.options())
         ) {
             final MinecraftVersionsApi minecraftVersionsApi = new MinecraftVersionsApi(minecraftVersionsFetch);
+            if (minecraftManifestUrl != null) {
+                minecraftVersionsApi.setManifestUrl(minecraftManifestUrl);
+            }
 
             final String version = minecraftVersionsApi
                 .getAllReleases()

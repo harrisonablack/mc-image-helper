@@ -1,0 +1,23 @@
+{
+  "latest": {
+    "release": "1.21.10",
+    "snapshot": "25w32a"
+  },
+  "versions": [
+    {
+      "id": "1.21.10",
+      "type": "release",
+      "url": "https://example.invalid/1.21.10.json"
+    },
+    {
+      "id": "1.21.4",
+      "type": "release",
+      "url": "https://example.invalid/1.21.4.json"
+    },
+    {
+      "id": "25w32a",
+      "type": "snapshot",
+      "url": "https://example.invalid/25w32a.json"
+    }
+  ]
+}

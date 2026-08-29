@@ -1,109 +1,47 @@
 package me.itzg.helpers.modrinth;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.params.provider.Arguments.argumentSet;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.github.stefanbirkner.systemlambda.SystemLambda;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+import java.net.URI;
 import java.util.List;
+import me.itzg.helpers.errors.InvalidParameterException;
+import me.itzg.helpers.modrinth.model.VersionType;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.FieldSource;
 import picocli.CommandLine;
 import picocli.CommandLine.ExitCode;
+import org.slf4j.LoggerFactory;
 
 @WireMockTest
 class VersionFromModrinthProjectsCommandTest {
 
-    @ParameterizedTest
-    @FieldSource("processGameVersionsArgs")
-    void processGameVersions(List<List<String>> versions, String expected) {
-        final String result = VersionFromModrinthProjectsCommand.processGameVersions(versions);
+    private final Logger logger = (Logger) LoggerFactory.getLogger(VersionFromModrinthProjectsCommand.class);
 
-        if (expected != null) {
-            assertThat(result)
-                .isNotNull()
-                .isEqualTo(expected);
-        }
-        else {
-            assertThat(result)
-                .isNull();
-        }
+    private final ListAppender<ILoggingEvent> logAppender = new ListAppender<>();
+
+    @BeforeEach
+    void startCapturingLogging() {
+        logAppender.start();
+        
+        logger.setLevel(Level.DEBUG);
+        logger.addAppender(logAppender);
     }
 
-    @SuppressWarnings("unused") // will be fixed https://youtrack.jetbrains.com/issue/IDEA-358214/Support-JUnit-5-FieldSource-annotation
-    static List<Arguments> processGameVersionsArgs = asList(
-        argumentSet("matches", asList(
-                asList("1.21.6", "1.21.7", "1.21.8"),
-                asList("1.21.6", "1.21.7", "1.21.8"),
-                asList("1.21.6", "1.21.7", "1.21.8"),
-                asList("1.21.6", "1.21.7", "1.21.8")
-            ), "1.21.8"
-        ),
-        argumentSet("justOneOff", asList(
-                asList("1.21.6", "1.21.7", "1.21.8"),
-                asList("1.21.6", "1.21.7", "1.21.8"),
-                asList("1.21.6", "1.21.7"),
-                asList("1.21.6", "1.21.7", "1.21.8")
-            ), "1.21.7"
-        ),
-        argumentSet("mismatch", asList(
-                asList("1.21.6", "1.21.7", "1.21.8"),
-                asList("1.21.6", "1.21.7", "1.21.8"),
-                asList("1.21.4", "1.21.5"),
-                asList("1.21.6", "1.21.7", "1.21.8")
-            ), null
-        ),
-        argumentSet("fabric-api + nucledoom", asList(
-            // part of fabric-api
-                asList("24w46a",
-                    "1.21.4-pre1",
-                    "1.21.4-pre2",
-                    "1.21.4-pre3",
-                    "1.21.4-rc3",
-                    "1.21.4",
-                    "25w02a",
-                    "25w03a",
-                    "25w04a",
-                    "25w05a",
-                    "25w06a",
-                    "25w07a",
-                    "25w08a",
-                    "25w09a",
-                    "25w09b",
-                    "25w10a",
-                    "1.21.5-pre1",
-                    "1.21.5-pre2",
-                    "1.21.5-pre3",
-                    "1.21.5-rc1",
-                    "1.21.5-rc2",
-                    "1.21.5",
-                    "25w14craftmine",
-                    "25w15a",
-                    "25w16a",
-                    "25w17a",
-                    "25w18a",
-                    "25w19a",
-                    "25w20a",
-                    "25w21a",
-                    "1.21.6-pre1",
-                    "1.21.6-pre3",
-                    "1.21.6",
-                    "1.21.7-rc1",
-                    "1.21.7",
-                    "1.21.8",
-                    "25w31a",
-                    "25w32a"),
-            // part of nucledoom
-            singletonList("1.21.4")
-            ), "1.21.4"
-        )
-    );
+    @AfterEach
+    void stopCapturingLogging() {
+        logger.detachAppender(logAppender);
+        logAppender.stop();
+    }
 
     @Test
     void testCommand(WireMockRuntimeInfo wmInfo) throws Exception {
@@ -111,7 +49,7 @@ class VersionFromModrinthProjectsCommandTest {
         stubGetProjects("viaversion", "viabackwards", "griefprevention", "discordsrv");
 
         final String out = SystemLambda.tapSystemOut(() -> {
-            final int exitCode = new CommandLine(new VersionFromModrinthProjectsCommand())
+            final int exitCode = new CommandLine(command(wmInfo))
                 .execute(
                     "--api-base-url", wmInfo.getHttpBaseUrl(),
                     "--projects", "viaversion,viabackwards,griefprevention,discordsrv"
@@ -130,7 +68,7 @@ class VersionFromModrinthProjectsCommandTest {
         stubGetProjects("fabric-api", "nucledoom");
 
         final String out = SystemLambda.tapSystemOut(() -> {
-            final int exitCode = new CommandLine(new VersionFromModrinthProjectsCommand())
+            final int exitCode = new CommandLine(command(wmInfo))
                 .execute(
                     "--api-base-url", wmInfo.getHttpBaseUrl(),
                     "--projects", "fabric-api, nucledoom"
@@ -149,7 +87,7 @@ class VersionFromModrinthProjectsCommandTest {
         stubGetProjects("viaversion", "viabackwards", "griefprevention", "discordsrv");
 
         final String out = SystemLambda.tapSystemOut(() -> {
-            final int exitCode = new CommandLine(new VersionFromModrinthProjectsCommand())
+            final int exitCode = new CommandLine(command(wmInfo))
                 .execute(
                     "--api-base-url", wmInfo.getHttpBaseUrl(),
                     "--projects", "paper:viaversion,viabackwards,griefprevention:ue7jAjJ5,discordsrv"
@@ -162,6 +100,45 @@ class VersionFromModrinthProjectsCommandTest {
         assertThat(out).isEqualToNormalizingNewlines("1.21.10\n");
     }
 
+    @Test
+    void rejectsNullProjects() {
+        assertThatThrownBy(() -> new VersionFromModrinthProjectsCommand().call())
+            .isInstanceOf(InvalidParameterException.class)
+            .hasMessage("No projects provided, please provide at least one Modrinth project");
+    }
+
+    @Test
+    void rejectsEmptyProjects() {
+        final VersionFromModrinthProjectsCommand command = new VersionFromModrinthProjectsCommand();
+        command.projects = List.of();
+
+        assertThatThrownBy(command::call)
+            .isInstanceOf(InvalidParameterException.class)
+            .hasMessage("No projects provided, please provide at least one Modrinth project");
+    }
+
+    @Test
+    void reportsCoverageAndReturnsFailureWhenNoReleaseMatches(WireMockRuntimeInfo wmInfo) throws Exception {
+        stubProjectVersions("project-one", "1.21.10");
+        stubProjectVersions("project-two", "1.21.4");
+
+        final VersionFromModrinthProjectsCommand command = command(wmInfo);
+        command.baseUrl = wmInfo.getHttpBaseUrl();
+        command.defaultVersionType = VersionType.release;
+        command.projects = List.of("project-one", "project-two");
+
+        assertThat(command.call())
+            .isEqualTo(ExitCode.SOFTWARE);
+
+        assertThat(logAppender.list)
+            .extracting(ILoggingEvent::getFormattedMessage)
+            .contains(
+                "1.21.10: 1/2 projects; missing: project-two",
+                "1.21.4: 1/2 projects; missing: project-one"
+            )
+            .noneMatch(message -> message.contains("Closest matches:"));
+    }
+
     private void stubGetProjects(String... projects) {
         for (final String project : projects) {
             stubFor(get(urlPathEqualTo("/v2/project/" + project + "/version"))
@@ -171,5 +148,32 @@ class VersionFromModrinthProjectsCommandTest {
                 )
             );
         }
+    }
+
+    private VersionFromModrinthProjectsCommand command(WireMockRuntimeInfo wmInfo) {
+        stubFor(get(urlPathEqualTo("/mc/game/version_manifest_v2.json"))
+            .willReturn(aResponse()
+                .withHeader("Content-Type", "application/json")
+                .withBodyFile("minecraft-version-manifest.json")
+            )
+        );
+
+        return new VersionFromModrinthProjectsCommand()
+            .setMinecraftManifestUrl(URI.create(
+                wmInfo.getHttpBaseUrl() + "/mc/game/version_manifest_v2.json"
+            ));
+    }
+
+    private void stubProjectVersions(String project, String gameVersion) {
+        stubFor(get(urlPathEqualTo("/v2/project/" + project + "/version"))
+            .willReturn(aResponse()
+                .withHeader("Content-Type", "application/json")
+                .withBody(String.format(
+                    "[{\"game_versions\":[\"%s\"],\"id\":\"version-%s\",\"date_published\":\"2026-01-01T00:00:00Z\",\"version_type\":\"release\"}]",
+                    gameVersion,
+                    project
+                ))
+            )
+        );
     }
 }

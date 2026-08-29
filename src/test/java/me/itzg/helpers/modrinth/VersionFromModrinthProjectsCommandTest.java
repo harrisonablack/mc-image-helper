@@ -26,14 +26,14 @@ import org.slf4j.LoggerFactory;
 class VersionFromModrinthProjectsCommandTest {
 
     private final Logger logger = (Logger) LoggerFactory.getLogger(VersionFromModrinthProjectsCommand.class);
-
     private final ListAppender<ILoggingEvent> logAppender = new ListAppender<>();
+    private Level prevLevel;
 
     @BeforeEach
     void startCapturingLogging() {
-        logAppender.start();
-        
+        prevLevel = logger.getLevel();
         logger.setLevel(Level.DEBUG);
+        logAppender.start();
         logger.addAppender(logAppender);
     }
 
@@ -41,6 +41,7 @@ class VersionFromModrinthProjectsCommandTest {
     void stopCapturingLogging() {
         logger.detachAppender(logAppender);
         logAppender.stop();
+        logger.setLevel(prevLevel);
     }
 
     @Test

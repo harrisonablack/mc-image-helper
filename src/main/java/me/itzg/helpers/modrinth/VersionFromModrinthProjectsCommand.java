@@ -272,7 +272,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                 return release.getId();
             }
 
-            log.debug("Minecraft release {} rejected; missing support from: {}",
+            log.trace("Minecraft release {} rejected; missing support from: {}",
                 release.getId(), String.join(", ", missingProjects));
         }
 

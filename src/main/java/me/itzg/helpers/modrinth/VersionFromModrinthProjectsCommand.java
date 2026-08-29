@@ -162,7 +162,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
         final List<ProjectRef> effectiveRefs;
 
         if (requiredRefs.isEmpty()) {
-            log.warn("All projects are marked as optional, using all for version resolution");
+            log.warn("All Modrinth projects are marked as optional, using all for version resolution");
             effectiveRefs = refs;
         } else {
             effectiveRefs = requiredRefs;

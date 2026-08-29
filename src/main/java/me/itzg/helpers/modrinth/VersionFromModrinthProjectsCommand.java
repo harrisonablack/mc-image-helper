@@ -121,9 +121,6 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                     modrinthApiClient,
                     releases
                 ))
-                .doOnError(e -> {
-                    log.error("Failed to find a compatible release: {}", e.getMessage());
-                })
                 .block();
 
             System.out.println(version);

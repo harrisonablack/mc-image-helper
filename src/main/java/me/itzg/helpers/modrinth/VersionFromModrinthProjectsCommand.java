@@ -124,6 +124,10 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                 ))
                 .block();
 
+            if (version == null) {
+                return ExitCode.SOFTWARE;
+            }
+
             System.out.println(version);
             return ExitCode.OK;
         }
@@ -201,7 +205,9 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             return Mono.just(version);
         }
 
-        return Mono.error(new GenericException(describeNoCompatibleRelease(officialReleases, refs, versionMatrix)));
+        log.error(describeNoCompatibleRelease(officialReleases, refs, versionMatrix));
+
+        return Mono.empty();
     }
 
     /**

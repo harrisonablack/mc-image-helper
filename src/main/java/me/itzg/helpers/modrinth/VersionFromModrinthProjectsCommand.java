@@ -293,38 +293,31 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
         List<ProjectRef> refs,
         Map<String, Set<Integer>> versionMatrix
     ) {
-        int maxCoverage = 0;
-        final List<String> closestMatches = new ArrayList<>();
+        final List<String> logs = new ArrayList<>();
 
         for (VersionManifestV2.Version release : officialReleases) {
             final Set<Integer> supportedProjects = versionMatrix.getOrDefault(release.getId(), Collections.emptySet());
             final int coverage = supportedProjects.size();
-            if (coverage > maxCoverage) {
-                maxCoverage = coverage;
-                closestMatches.clear();
-            }
+            final List<String> missingProjects = missingProjectNames(refs, supportedProjects);
 
-            if (coverage == maxCoverage && coverage > 0) {
-                final List<String> missingProjects = missingProjectNames(refs, supportedProjects);
-
-                closestMatches.add(String.format(
+                logs.add(String.format(
                     "  %s: %d/%d projects; missing: %s",
                     release.getId(),
                     coverage,
                     refs.size(),
                     String.join(", ", missingProjects)
                 ));
-            }
+
         }
 
-        if (closestMatches.isEmpty()) {
+        if (logs.isEmpty()) {
             return "Unable to find a compatible Minecraft release across given projects"
                 + "\nNo effective project supports an official release";
         }
 
         return "Unable to find a compatible Minecraft release across given projects"
             + "\nClosest matches:\n"
-            + String.join("\n", closestMatches);
+            + String.join("\n", logs);
     }
 
     /**

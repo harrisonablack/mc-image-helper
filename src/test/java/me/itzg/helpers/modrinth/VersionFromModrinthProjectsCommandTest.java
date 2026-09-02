@@ -103,22 +103,29 @@ class VersionFromModrinthProjectsCommandTest {
     void reportsCoverageAndReturnsFailureWhenNoReleaseMatches(WireMockRuntimeInfo wmInfo) throws Exception {
         stubProjectVersions("project-one", "1.21.10");
         stubProjectVersions("project-two", "1.21.4");
+        final String mcApiUrl = stubMcApi(wmInfo);
 
-        final VersionFromModrinthProjectsCommand command = command(wmInfo);
-        command.baseUrl = wmInfo.getHttpBaseUrl();
-        command.defaultVersionType = VersionType.release;
-        command.projects = List.of("project-one", "project-two");
+        final String err = SystemLambda.tapSystemErr(() -> {
+            final int exitCode = new CommandLine(new McImageHelper())
+                .execute(
+                    "--debug",
+                    "version-from-modrinth-projects",
+                    "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", mcApiUrl,
+                    "--allowed-version-type", VersionType.release.name(),
+                    "--projects", "project-one,project-two"
+                );
 
-        assertThat(command.call())
-            .isEqualTo(ExitCode.SOFTWARE);
+            assertThat(exitCode)
+                .isEqualTo(ExitCode.SOFTWARE);
+        });
 
-        assertThat(logAppender.list)
-            .extracting(ILoggingEvent::getFormattedMessage)
+        assertThat(err)
             .contains(
                 "1.21.10: 1/2 projects; missing: project-two",
                 "1.21.4: 1/2 projects; missing: project-one"
             )
-            .noneMatch(message -> message.contains("Closest matches:"));
+            .doesNotContain("Closest matches:");
     }
 
     private void stubGetProjects(String... projects) {

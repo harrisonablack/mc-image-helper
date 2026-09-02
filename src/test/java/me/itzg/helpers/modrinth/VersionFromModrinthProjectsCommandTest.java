@@ -132,7 +132,7 @@ class VersionFromModrinthProjectsCommandTest {
         }
     }
 
-    private VersionFromModrinthProjectsCommand command(WireMockRuntimeInfo wmInfo) {
+    private String stubMcApi(WireMockRuntimeInfo wmInfo) {
         stubFor(get(urlPathEqualTo("/mc/game/version_manifest_v2.json"))
             .willReturn(aResponse()
                 .withHeader("Content-Type", "application/json")
@@ -140,10 +140,7 @@ class VersionFromModrinthProjectsCommandTest {
             )
         );
 
-        return new VersionFromModrinthProjectsCommand()
-            .setMinecraftManifestUrl(URI.create(
-                wmInfo.getHttpBaseUrl() + "/mc/game/version_manifest_v2.json"
-            ));
+        return wmInfo.getHttpBaseUrl() + "/mc/game/version_manifest_v2.json";
     }
 
     private void stubProjectVersions(String project, String gameVersion) {

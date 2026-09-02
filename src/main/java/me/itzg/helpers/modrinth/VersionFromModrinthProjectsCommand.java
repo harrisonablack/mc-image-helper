@@ -59,13 +59,6 @@ import reactor.core.publisher.Mono;
 @Command(name = "version-from-modrinth-projects", description = "Finds a compatible Minecraft version across given Modrinth projects")
 @Slf4j
 public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
-    private URI minecraftManifestUrl;
-
-    VersionFromModrinthProjectsCommand setMinecraftManifestUrl(URI minecraftManifestUrl) {
-        this.minecraftManifestUrl = minecraftManifestUrl;
-        return this;
-    }
-
     @Option(
         names = "--projects",
         description = "Project ID or Slug. Can be <project ID>|<slug>,"
@@ -96,6 +89,11 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
     )
     String baseUrl;
 
+    @Option(names = "--mc-api-base-url", defaultValue = "${env:MC_API_BASE_URL:-https://launchermeta.mojang.com/mc/game/version_manifest_v2.json}",
+    description = "Default: ${DEFAULT-VALUE}"
+    )
+    String mcBaseUrl;
+
     @ArgGroup(exclusive = false)
     SharedFetchArgs sharedFetchArgs = new SharedFetchArgs();
 
@@ -110,10 +108,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             ModrinthApiClient modrinthApiClient = new ModrinthApiClient(baseUrl, "modrinth", sharedFetchArgs.options());
             SharedFetch minecraftVersionsFetch = new SharedFetch("minecraft-versions-api", sharedFetchArgs.options())
         ) {
-            final MinecraftVersionsApi minecraftVersionsApi = new MinecraftVersionsApi(minecraftVersionsFetch);
-            if (minecraftManifestUrl != null) {
-                minecraftVersionsApi.setManifestUrl(minecraftManifestUrl);
-            }
+            final MinecraftVersionsApi minecraftVersionsApi = new MinecraftVersionsApi(minecraftVersionsFetch).setManifestUrl(URI.create(mcBaseUrl));
 
             final String version = minecraftVersionsApi
                 .getAllReleases()

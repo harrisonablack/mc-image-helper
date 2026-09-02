@@ -25,25 +25,6 @@ import org.slf4j.LoggerFactory;
 @WireMockTest
 class VersionFromModrinthProjectsCommandTest {
 
-    private final Logger logger = (Logger) LoggerFactory.getLogger(VersionFromModrinthProjectsCommand.class);
-    private final ListAppender<ILoggingEvent> logAppender = new ListAppender<>();
-    private Level prevLevel;
-
-    @BeforeEach
-    void startCapturingLogging() {
-        prevLevel = logger.getLevel();
-        logger.setLevel(Level.DEBUG);
-        logAppender.start();
-        logger.addAppender(logAppender);
-    }
-
-    @AfterEach
-    void stopCapturingLogging() {
-        logger.detachAppender(logAppender);
-        logAppender.stop();
-        logger.setLevel(prevLevel);
-    }
-
     @Test
     void testCommand(WireMockRuntimeInfo wmInfo) throws Exception {
 

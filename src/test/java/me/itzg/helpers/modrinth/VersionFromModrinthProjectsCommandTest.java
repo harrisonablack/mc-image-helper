@@ -133,6 +133,32 @@ class VersionFromModrinthProjectsCommandTest {
     }
 
     @Test
+    void deduplicatesEquivalentProjectReferences(WireMockRuntimeInfo wmInfo) throws Exception {
+        stubProjectVersions("project-one", List.of("1.21.8"));
+
+        final String stdout = SystemLambda.tapSystemOut(() -> {
+            final int exitCode = new CommandLine(new McImageHelper())
+                .execute(
+                    "version-from-modrinth-projects",
+                    "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", stubMcApi(wmInfo),
+                    "--allowed-version-type", VersionType.release.name(),
+                    "--loader", "paper",
+                    "--projects", "paper:project-one,PAPER:project-one"
+                );
+
+            assertThat(exitCode).isEqualTo(ExitCode.OK);
+        });
+
+        assertThat(stdout).isEqualToNormalizingNewlines("1.21.8\n");
+
+        verify(
+            exactly(1),
+            getRequestedFor(urlPathEqualTo("/v2/project/project-one/version"))
+        );
+    }
+
+    @Test
     void returnsFailureWhenProjectsHaveNoCommonRelease(WireMockRuntimeInfo wmInfo) throws Exception {
         stubProjectVersions("project-one", List.of("1.21.6", "1.21.7", "1.21.8"));
         stubProjectVersions("project-two", List.of("1.21.6", "1.21.7", "1.21.8"));

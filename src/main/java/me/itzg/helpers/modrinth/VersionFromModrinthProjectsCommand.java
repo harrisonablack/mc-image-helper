@@ -194,10 +194,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
      * @return Compatible Minecraft release if supported, or an empty result if no compatible release
      */
     private Mono<String> calculateVersion(List<VersionManifestV2.Version> officialReleases, List<ProjectRef> refs, List<List<String>> versions) {
-        final Map<String, Set<Integer>> versionMatrix = buildVersionMatrix(versions);
-        final String version = findHighestCompleteRelease(officialReleases, refs, versionMatrix);
-
-        return Mono.justOrEmpty(version);
+        return Mono.justOrEmpty(findHighestCompleteRelease(officialReleases, refs, versions));
     }
 
     /**
@@ -223,28 +220,6 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             });
     }
 
-
-    /**
-     * Builds matrix of releases against projects.
-     *
-     * @param versionMatrix List of versions supported per project
-     * @return Map of Minecraft releases against indexs of modrinth projects.
-     */
-    private Map<String, Set<Integer>> buildVersionMatrix(List<List<String>> versionMatrix) {
-        final Map<String, Set<Integer>> supportedByVersion = new HashMap<>();
-
-        for (int projectIndex = 0; projectIndex < versionMatrix.size(); projectIndex++) {
-            for (String gameVersion : new HashSet<>(versionMatrix.get(projectIndex))) {
-                supportedByVersion
-                    .computeIfAbsent(gameVersion, ignored -> new HashSet<>())
-                    .add(projectIndex);
-            }
-        }
-
-        return supportedByVersion;
-    }
-
-
     /**
      * Finds the first Minecraft release supported by all required projects.
      *
@@ -257,16 +232,16 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
     private String findHighestCompleteRelease(
         List<VersionManifestV2.Version> officialReleases,
         List<ProjectRef> refs,
-        Map<String, Set<Integer>> versionMatrix
+        List<List<String>> versionsByProject
     ) {
         for (VersionManifestV2.Version release : officialReleases) {
-            final Set<Integer> supportedProjects = versionMatrix.getOrDefault(release.getId(), Collections.emptySet());
-            final List<String> missingProjects = missingProjectNames(refs, supportedProjects);
+            final List<String> missingProjects = missingProjectNames(refs, versionsByProject, release.getId());
+            final int supportedProjectCount = refs.size() - missingProjects.size();
 
             if (missingProjects.isEmpty()) {
                 log.debug("{}: {}/{} projects",
                     release.getId(),
-                    supportedProjects.size(),
+                    supportedProjectCount,
                     refs.size()
                 );
 
@@ -275,7 +250,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
 
             log.debug("{}: {}/{} projects; missing: {}",
                 release.getId(),
-                supportedProjects.size(),
+                supportedProjectCount,
                 refs.size(),
                 String.join(", ", missingProjects)
             );
@@ -291,10 +266,14 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
      * @param supportedProjects the indexes of projects supporting the release
      * @return Projects not in {@code supportedProjects}
      */
-    private List<String> missingProjectNames(List<ProjectRef> refs, Set<Integer> supportedProjects) {
+    private static List<String> missingProjectNames(
+        List<ProjectRef> refs,
+        List<List<String>> versionsByProject,
+        String releaseId
+    ) {
         final List<String> missingProjects = new ArrayList<>();
         for (int projectIndex = 0; projectIndex < refs.size(); projectIndex++) {
-            if (!supportedProjects.contains(projectIndex)) {
+            if (!versionsByProject.get(projectIndex).contains(releaseId)) {
                 missingProjects.add(refs.get(projectIndex).getIdOrSlug());
             }
         }

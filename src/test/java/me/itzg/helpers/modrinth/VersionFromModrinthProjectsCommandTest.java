@@ -4,6 +4,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.stefanbirkner.systemlambda.SystemLambda;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
@@ -172,15 +175,21 @@ class VersionFromModrinthProjectsCommandTest {
     }
 
     private void stubProjectVersions(String project, String gameVersion) {
-        stubFor(get(urlPathEqualTo("/v2/project/" + project + "/version"))
-            .willReturn(aResponse()
-                .withHeader("Content-Type", "application/json")
-                .withBody(String.format(
-                    "[{\"game_versions\":[\"%s\"],\"id\":\"version-%s\",\"date_published\":\"2026-01-01T00:00:00Z\",\"version_type\":\"release\"}]",
-                    gameVersion,
-                    project
-                ))
-            )
+        final ObjectMapper mapper = new ObjectMapper();
+        final ArrayNode response = mapper.createArrayNode();
+
+        final ObjectNode version = response.addObject()
+            .put("id", "version-" + project)
+            .put("date_published", "2026-01-01T00:00:00Z")
+            .put("version_type", "release");
+
+        version.putArray("game_versions").add(gameVersion);
+
+        stubFor(get(urlEqualTo("/v2/project/" + project + "/version"))
+                .willReturn(aResponse()
+                    .withHeader("Content-Type", "application/json")
+                    .withJsonBody(response)
+                )
         );
     }
 }

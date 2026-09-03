@@ -16,6 +16,7 @@ import ch.qos.logback.classic.Logger;
 
 import java.util.List;
 
+import me.itzg.helpers.LatchingExecutionExceptionHandler;
 import me.itzg.helpers.McImageHelper;
 import me.itzg.helpers.errors.InvalidParameterException;
 import me.itzg.helpers.modrinth.model.VersionType;
@@ -107,20 +108,38 @@ class VersionFromModrinthProjectsCommandTest {
     }
 
     @Test
-    void rejectsNullProjects() {
-        assertThatThrownBy(() -> new VersionFromModrinthProjectsCommand().call())
+    void rejectsNullProjects() throws Exception {
+
+        final LatchingExecutionExceptionHandler exceptionHandler = new LatchingExecutionExceptionHandler();
+
+        new CommandLine(new McImageHelper())
+            .setExecutionExceptionHandler(exceptionHandler)
+            .execute(
+            "version-from-modrinth-projects"
+        );
+
+        assertThat(exceptionHandler.getExecutionException())
             .isInstanceOf(InvalidParameterException.class)
-            .hasMessage("No projects provided, please provide at least one Modrinth project");
+            .hasMessageContaining("No projects provided, please provide at least one Modrinth project");
+
     }
 
     @Test
-    void rejectsEmptyProjects() {
-        final VersionFromModrinthProjectsCommand command = new VersionFromModrinthProjectsCommand();
-        command.projects = List.of();
+    void rejectsEmptyProjects() throws Exception {
 
-        assertThatThrownBy(command::call)
+        final LatchingExecutionExceptionHandler exceptionHandler = new LatchingExecutionExceptionHandler();
+
+        new CommandLine(new McImageHelper())
+            .setExecutionExceptionHandler(exceptionHandler)
+            .execute(
+            "version-from-modrinth-projects",
+            "--projects="
+        );
+
+        assertThat(exceptionHandler.getExecutionException())
             .isInstanceOf(InvalidParameterException.class)
-            .hasMessage("No projects provided, please provide at least one Modrinth project");
+            .hasMessageContaining("No Modrinth projects parsed successfully, please ensure projects follow \"<loader>:<project ID>|<slug>\" and are delimited by commas");
+
     }
 
     @Test

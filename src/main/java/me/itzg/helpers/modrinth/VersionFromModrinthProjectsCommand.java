@@ -5,10 +5,13 @@ import static me.itzg.helpers.McImageHelper.SPLIT_SYNOPSIS_COMMA_NL;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import me.itzg.helpers.errors.GenericException;
 import me.itzg.helpers.http.SharedFetchArgs;
@@ -119,7 +122,9 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
     }
 
     static String processGameVersions(List<List<String>> allGameVersions) {
-        final Map<String, Integer> gameVersionCounts = new HashMap<>();
+
+        final Map<String, int[]> gameVersionPositions = new HashMap<>();
+        final Set<String> loggedBlockedVersions = new HashSet<>();
 
         final int projectCount = allGameVersions.size();
 
@@ -139,10 +144,33 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                 if (positions[i] >= 0) {
                     final int position = positions[i]--;
                     final String version = allGameVersions.get(i).get(position);
-                    final Integer result = gameVersionCounts.compute(version, (k, count) -> count == null ? 1 : count + 1);
+
+                    final int[] projectPositions = gameVersionPositions.computeIfAbsent(version, ignored -> {
+                        final int[] result = new int[projectCount];
+                        Arrays.fill(result, -1);
+                        return result;
+                    });
+
+                    // Prevent duplicate entries from the same project counting twice.
+                    if (projectPositions[i] < 0) {
+                        projectPositions[i] = position;
+                    }
+
                     // did this version slot indicate match for all?
-                    if (result == projectCount) {
+                    if (Arrays.stream(projectPositions).allMatch(projectPosition -> projectPosition >= 0)) {
                         return version;
+                    }
+
+                    if (log.isDebugEnabled() && !loggedBlockedVersions.contains(version)) {
+                        final List<Integer> blockingProjects = IntStream.range(0, projectCount)
+                            .filter(projectIndex -> !allGameVersions.get(projectIndex).contains(version))
+                            .boxed()
+                            .collect(Collectors.toList());
+
+                        if (!blockingProjects.isEmpty()) {
+                            loggedBlockedVersions.add(version);
+                            log.debug("Minecraft version {} is blocked by project indexes {}", version, blockingProjects);
+                        }
                     }
                 }
             }

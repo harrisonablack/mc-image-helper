@@ -7,14 +7,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.stefanbirkner.systemlambda.SystemLambda;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
+
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
-import ch.qos.logback.classic.spi.ILoggingEvent;
-import ch.qos.logback.core.read.ListAppender;
-import java.net.URI;
+
 import java.util.List;
+
+import me.itzg.helpers.McImageHelper;
 import me.itzg.helpers.errors.InvalidParameterException;
 import me.itzg.helpers.modrinth.model.VersionType;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,7 +24,6 @@ import org.slf4j.LoggerFactory;
 
 import picocli.CommandLine;
 import picocli.CommandLine.ExitCode;
-import org.slf4j.LoggerFactory;
 
 @WireMockTest
 class VersionFromModrinthProjectsCommandTest {
@@ -45,10 +46,13 @@ class VersionFromModrinthProjectsCommandTest {
 
         stubGetProjects("viaversion", "viabackwards", "griefprevention", "discordsrv");
 
-        final String out = SystemLambda.tapSystemOut(() -> {
-            final int exitCode = new CommandLine(command(wmInfo))
+        final String stdout = SystemLambda.tapSystemOut(() -> {
+            final int exitCode = new CommandLine(new McImageHelper())
                 .execute(
+                    "version-from-modrinth-projects",
                     "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", stubMcApi(wmInfo),
+                    "--allowed-version-type", VersionType.release.name(),
                     "--projects", "viaversion,viabackwards,griefprevention,discordsrv"
                 );
 
@@ -56,18 +60,19 @@ class VersionFromModrinthProjectsCommandTest {
                 .isEqualTo(ExitCode.OK);
         });
 
-        assertThat(out).isEqualToNormalizingNewlines("1.21.10\n");
+        assertThat(stdout).isEqualToNormalizingNewlines("1.21.10\n");
     }
 
     @Test
     void testCommandFabric(WireMockRuntimeInfo wmInfo) throws Exception {
-
         stubGetProjects("fabric-api", "nucledoom");
 
-        final String out = SystemLambda.tapSystemOut(() -> {
-            final int exitCode = new CommandLine(command(wmInfo))
+        final String stdout = SystemLambda.tapSystemOut(() -> {
+            final int exitCode = new CommandLine(new McImageHelper())
                 .execute(
+                    "version-from-modrinth-projects",
                     "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", stubMcApi(wmInfo),
                     "--projects", "fabric-api, nucledoom"
                 );
 
@@ -75,26 +80,27 @@ class VersionFromModrinthProjectsCommandTest {
                 .isEqualTo(ExitCode.OK);
         });
 
-        assertThat(out).isEqualToNormalizingNewlines("1.21.4\n");
+        assertThat(stdout).isEqualToNormalizingNewlines("1.21.4\n");
     }
 
     @Test
     void testCommandWithProjectQualifiers(WireMockRuntimeInfo wmInfo) throws Exception {
-
         stubGetProjects("viaversion", "viabackwards", "griefprevention", "discordsrv");
 
-        final String out = SystemLambda.tapSystemOut(() -> {
-            final int exitCode = new CommandLine(command(wmInfo))
+        final String stdout = SystemLambda.tapSystemOut(() -> {
+            final int exitcode = new CommandLine(new McImageHelper())
                 .execute(
+                    "version-from-modrinth-projects",
                     "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", stubMcApi(wmInfo),
                     "--projects", "paper:viaversion,viabackwards,griefprevention:ue7jAjJ5,discordsrv"
                 );
 
-            assertThat(exitCode)
+            assertThat(exitcode)
                 .isEqualTo(ExitCode.OK);
         });
 
-        assertThat(out).isEqualToNormalizingNewlines("1.21.10\n");
+        assertThat(stdout).isEqualToNormalizingNewlines("1.21.10\n");
     }
 
     @Test

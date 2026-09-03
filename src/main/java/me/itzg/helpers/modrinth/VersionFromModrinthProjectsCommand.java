@@ -147,6 +147,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             .filter(Objects::nonNull)
             .map(String::trim)
             .filter(ref -> !ref.isEmpty())
+            .distinct()
             .map(ProjectRef::parse)
             .collect(Collectors.toList());
 

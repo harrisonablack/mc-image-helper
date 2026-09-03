@@ -300,7 +300,7 @@ class VersionFromModrinthProjectsCommandTest {
         final ArrayNode supportedVersions = version.putArray("game_versions");
         gameVersions.forEach(supportedVersions::add);
 
-        stubFor(get(urlEqualTo("/v2/project/" + project + "/version"))
+        stubFor(get(urlPathEqualTo("/v2/project/" + project + "/version"))
                 .willReturn(aResponse()
                     .withHeader("Content-Type", "application/json")
                     .withJsonBody(response)

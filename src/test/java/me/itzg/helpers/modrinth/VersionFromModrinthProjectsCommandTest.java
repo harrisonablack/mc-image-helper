@@ -18,12 +18,27 @@ import me.itzg.helpers.modrinth.model.VersionType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
+
 import picocli.CommandLine;
 import picocli.CommandLine.ExitCode;
 import org.slf4j.LoggerFactory;
 
 @WireMockTest
 class VersionFromModrinthProjectsCommandTest {
+
+    private final Logger log = (Logger) LoggerFactory.getLogger("me.itzg.helpers");
+    private Level logLevel;
+
+    @BeforeEach
+    void captureLogLeve() {
+        logLevel = log.getLevel();
+    }
+
+    @AfterEach
+    void setLogLevel() {
+        log.setLevel(logLevel);
+    }
 
     @Test
     void testCommand(WireMockRuntimeInfo wmInfo) throws Exception {

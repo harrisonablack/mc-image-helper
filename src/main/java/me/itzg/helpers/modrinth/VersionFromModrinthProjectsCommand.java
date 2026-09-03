@@ -5,13 +5,8 @@ import static me.itzg.helpers.McImageHelper.SPLIT_SYNOPSIS_COMMA_NL;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 
@@ -30,29 +25,34 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * Finds a compatible Minecraft release across a set of Modrinth projects.
+ * Finds the highest Minecraft release supported by all effective Modrinth
+ * project references.
  *
- * <p>Each project is resolved to the Minecraft game versions it supports. Those
- * versions are then compared with the official Minecraft release manifest. The
- * first release supported by every effective project reference is selected.
+ * <p>Each effective project reference is resolved to the Minecraft game versions
+ * it supports. Those versions are then compared with the official Minecraft
+ * release manifest. Releases are checked from newest to oldest, and the first
+ * release supported by every effective project reference is selected.
  *
- * <p>Project references are represented by their index in the input list when
- * constructing the support matrix. For example:
+ * <p>Each supported-version list remains aligned with its project reference by
+ * index:
  *
  * <pre>
- * Project A: 1.21.10, 1.21.9, 1.21.7
- * Project B: 1.21.10, 1.21.8, 1.21.7
- * Project C: 1.21.10, 1.21.7
- * Project D: 1.21.9, 1.21.7
+ * refs[0] = Project A
+ * versionsByProject[0] = [1.21.10, 1.21.9, 1.21.7]
  *
- * 1.21.10: 0, 1, 2
- * 1.21.9:  0, 3
- * 1.21.8:  1
- * 1.21.7:  0, 1, 2, 3
+ * refs[1] = Project B
+ * versionsByProject[1] = [1.21.10, 1.21.8, 1.21.7]
+ *
+ * refs[2] = Project C
+ * versionsByProject[2] = [1.21.10, 1.21.7]
+ *
+ * refs[3] = Project D
+ * versionsByProject[3] = [1.21.9, 1.21.7]
+ *
+ * Selected release: 1.21.7
  * </pre>
  *
- * <p>In this example, {@code 1.21.7} is supported by all four projects.
- * Optional project references are excluded from version resolution when at
+ * <p>Optional project references are excluded from version resolution when at
  * least one required reference is present. If all references are optional, all
  * references are used.
  */
@@ -129,13 +129,15 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
     }
 
     /**
-     * Parse Modrinth Project References.
+     * Parses the configured Modrinth project references.
      *
-     * <p>Each configured value is parsed using {@link ProjectRef#parse(String)}.
-     * Required references are preferred over optional references. If every
-     * reference is optional, all references are used.
+     * <p>Null and blank values are ignored, non-blank values are trimmed, and
+     * duplicate values are removed before each remaining value is parsed using
+     * {@link ProjectRef#parse(String)}. Required references are preferred over
+     * optional references. If every reference is optional, all references are
+     * used.
      *
-     * @return List of project references to use for version resolution.
+     * @return the effective project references to use for version resolution
      */
     private List<ProjectRef> parseProjects() {
 
@@ -172,11 +174,12 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
     }
 
     /**
-     * Resolves the Minecraft game versions supported by a Modrinth project.
-     *
+     * Resolves the Minecraft game versions supported by a Modrinth project
+     * reference.
+     *     
      * @param client Modrinth API client
-     * @param ref Modrinth project 
-     * @return List of supported Minecraft versions 
+     * @param ref Modrinth project reference
+     * @return a {@code Mono} emitting the supported Minecraft versions
      */
     private Mono<List<String>> resolveVersions(ModrinthApiClient client, ProjectRef ref) {
         final Loader loader = ref.getLoader() != null ? ref.getLoader() : this.loader;
@@ -186,23 +189,13 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
     }
 
     /**
-     * Calculates the highest compatible Minecraft release across the projects.
-     *
-     * @param officialReleases Minecraft releases
-     * @param refs Required Modrinth projects
-     * @param versions List of supported Versions for each project
-     * @return Compatible Minecraft release if supported, or an empty result if no compatible release
-     */
-    private Mono<String> calculateVersion(List<VersionManifestV2.Version> officialReleases, List<ProjectRef> refs, List<List<String>> versions) {
-        return Mono.justOrEmpty(findHighestCompleteRelease(officialReleases, refs, versions));
-    }
-
-    /**
-     * Resolves project versions and calculates the highest compatible Minecraft release.
+     * Resolves supported game versions for each effective project reference and
+     * calculates the highest compatible Minecraft release.
      *
      * @param modrinthApiClient Modrinth API client
-     * @param officialReleases Minecraft releases
-     * @return Result containing compatible Minecraft release
+     * @param officialReleases Minecraft releases in newest to oldest order
+     * @return {@code Mono} emitting the compatible Minecraft version, or 
+     *                      empty if no compatible version exists
      */
     private Mono<String> versionFromProjects(
         ModrinthApiClient modrinthApiClient,
@@ -216,18 +209,22 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             })
             .collectList()
             .flatMap(allProjectVersions -> {
-                return calculateVersion(officialReleases, refs, allProjectVersions);
+                return Mono.justOrEmpty(findHighestCompleteRelease(officialReleases, refs, allProjectVersions));
             });
     }
 
     /**
-     * Finds the first Minecraft release supported by all required projects.
+     * Finds the highest Minecraft release supported by all effective project
+     * references.
      *
-     * @param officialReleases Minecraft releases
-     * @param refs Required Modrinth projects
-     * @param versionMatrix List of versions supported per project
-     * @return the compatible release ID, or {@code null} if no release is supported
-     *         by every project
+     * <p>The releases are traversed in the supplied order, so the list must be
+     * ordered from newest to oldest for the first matching release to be the
+     * highest compatible release.
+     *
+     * @param officialReleases Minecraft releases in newest-to-oldest order
+     * @param refs effective Modrinth project references
+     * @param versionsByProject one list of supported versions Minecraft per modrinth project reference
+     * @return Compatible minecraft version, or {@code null} if no releases is supported by all projects
      */
     private String findHighestCompleteRelease(
         List<VersionManifestV2.Version> officialReleases,
@@ -260,11 +257,12 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
     }
 
     /**
-     * Finds the project names missing support for a Minecraft release.
+     * Finds the project identifiers missing support for a Minecraft release.
      *
-     * @param refs Required Modrinth projects
-     * @param supportedProjects the indexes of projects supporting the release
-     * @return Projects not in {@code supportedProjects}
+     * @param refs project references corresponding to {@code versionsByProject}
+     * @param versionsByProject one list of supported versions Minecraft per modrinth project reference
+     * @param releaseId Minecraft release ID to check
+     * @return Projects that do not support {@code releaseId}
      */
     private static List<String> missingProjectNames(
         List<ProjectRef> refs,

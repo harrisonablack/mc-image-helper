@@ -2,7 +2,6 @@ package me.itzg.helpers.modrinth;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -85,6 +84,76 @@ class VersionFromModrinthProjectsCommandTest {
         });
 
         assertThat(stdout).isEqualToNormalizingNewlines("1.21.4\n");
+    }
+
+    @Test
+    void findsHighestReleaseWhenAllProjectsMatch(WireMockRuntimeInfo wmInfo) throws Exception {
+        stubProjectVersions("project-one", List.of("1.21.6", "1.21.7", "1.21.8"));
+        stubProjectVersions("project-two", List.of("1.21.6", "1.21.7", "1.21.8"));
+        stubProjectVersions("project-three", List.of("1.21.6", "1.21.7", "1.21.8"));
+        stubProjectVersions("project-four", List.of("1.21.6", "1.21.7", "1.21.8"));
+
+        final String stdout = SystemLambda.tapSystemOut(() -> {
+            final int exitCode = new CommandLine(new McImageHelper())
+                .execute(
+                    "version-from-modrinth-projects",
+                    "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", stubMcApi(wmInfo),
+                    "--allowed-version-type", VersionType.release.name(),
+                    "--projects", "project-one,project-two,project-three,project-four"
+                );
+
+            assertThat(exitCode).isEqualTo(ExitCode.OK);
+        });
+
+        assertThat(stdout).isEqualToNormalizingNewlines("1.21.8\n");
+    }
+
+    @Test
+    void findsReleaseWhenOneProjectHasShorterVersionList(WireMockRuntimeInfo wmInfo) throws Exception {
+        stubProjectVersions("project-one", List.of("1.21.6", "1.21.7", "1.21.8"));
+        stubProjectVersions("project-two", List.of("1.21.6", "1.21.7", "1.21.8"));
+        stubProjectVersions("project-three", List.of("1.21.6", "1.21.7"));
+        stubProjectVersions("project-four", List.of("1.21.6", "1.21.7", "1.21.8"));
+
+        final String stdout = SystemLambda.tapSystemOut(() -> {
+            final int exitCode = new CommandLine(new McImageHelper())
+                .execute(
+                    "version-from-modrinth-projects",
+                    "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", stubMcApi(wmInfo),
+                    "--allowed-version-type", VersionType.release.name(),
+                    "--projects", "project-one,project-two,project-three,project-four"
+                );
+
+            assertThat(exitCode).isEqualTo(ExitCode.OK);
+        });
+
+        assertThat(stdout).isEqualToNormalizingNewlines("1.21.7\n");
+    }
+
+    @Test
+    void returnsFailureWhenProjectsHaveNoCommonRelease(WireMockRuntimeInfo wmInfo) throws Exception {
+        stubProjectVersions("project-one", List.of("1.21.6", "1.21.7", "1.21.8"));
+        stubProjectVersions("project-two", List.of("1.21.6", "1.21.7", "1.21.8"));
+        stubProjectVersions("project-three", List.of("1.21.4", "1.21.5"));
+        stubProjectVersions("project-four", List.of("1.21.6", "1.21.7", "1.21.8"));
+
+        final String stderr = SystemLambda.tapSystemErr(() -> {
+            final int exitCode = new CommandLine(new McImageHelper())
+                .execute(
+                    "version-from-modrinth-projects",
+                    "--api-base-url", wmInfo.getHttpBaseUrl(),
+                    "--mc-api-base-url", stubMcApi(wmInfo),
+                    "--allowed-version-type", VersionType.release.name(),
+                    "--projects", "project-one,project-two,project-three,project-four"
+                );
+
+            assertThat(exitCode).isEqualTo(ExitCode.SOFTWARE);
+        });
+
+        assertThat(stderr)
+            .contains("Failed to find a compatible Minecraft version across all projects");
     }
 
     @Test

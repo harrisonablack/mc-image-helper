@@ -144,8 +144,8 @@ class VersionFromModrinthProjectsCommandTest {
 
     @Test
     void reportsCoverageAndReturnsFailureWhenNoReleaseMatches(WireMockRuntimeInfo wmInfo) throws Exception {
-        stubProjectVersions("project-one", "1.21.10");
-        stubProjectVersions("project-two", "1.21.4");
+        stubProjectVersions("project-one", List.of("1.21.10"));
+        stubProjectVersions("project-two", List.of("1.21.4"));
         final String mcApiUrl = stubMcApi(wmInfo);
 
         final String err = SystemLambda.tapSystemErr(() -> {
@@ -193,7 +193,7 @@ class VersionFromModrinthProjectsCommandTest {
         return wmInfo.getHttpBaseUrl() + "/mc/game/version_manifest_v2.json";
     }
 
-    private void stubProjectVersions(String project, String gameVersion) {
+    private void stubProjectVersions(String project, List<String> gameVersions) {
         final ObjectMapper mapper = new ObjectMapper();
         final ArrayNode response = mapper.createArrayNode();
 
@@ -202,7 +202,8 @@ class VersionFromModrinthProjectsCommandTest {
             .put("date_published", "2026-01-01T00:00:00Z")
             .put("version_type", "release");
 
-        version.putArray("game_versions").add(gameVersion);
+        final ArrayNode supportedVersions = version.putArray("game_versions");
+        gameVersions.forEach(supportedVersions::add);
 
         stubFor(get(urlEqualTo("/v2/project/" + project + "/version"))
                 .willReturn(aResponse()

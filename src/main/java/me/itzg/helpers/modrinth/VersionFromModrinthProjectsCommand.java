@@ -102,7 +102,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
         }
 
         final List<List<String>> allGameVersions = Flux.fromIterable(effectiveRefs)
-            .flatMap(projectRef -> {
+            .flatMapSequential(projectRef -> {
                 final Loader loader = projectRef.getLoader() != null ? projectRef.getLoader() : defaultLoader;
                 final VersionType allowedVersionType = projectRef.hasVersionType()
                     ? projectRef.getVersionType()

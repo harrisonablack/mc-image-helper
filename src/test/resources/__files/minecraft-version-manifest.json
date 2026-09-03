@@ -10,6 +10,26 @@
       "url": "https://example.invalid/1.21.10.json"
     },
     {
+      "id": "1.21.8",
+      "type": "release",
+      "url": "https://example.invalid/1.21.8.json"
+    },
+    {
+      "id": "1.21.7",
+      "type": "release",
+      "url": "https://example.invalid/1.21.7.json"
+    },
+    {
+      "id": "1.21.6",
+      "type": "release",
+      "url": "https://example.invalid/1.21.6.json"
+    },
+    {
+      "id": "1.21.5",
+      "type": "release",
+      "url": "https://example.invalid/1.21.5.json"
+    },
+    {
       "id": "1.21.4",
       "type": "release",
       "url": "https://example.invalid/1.21.4.json"

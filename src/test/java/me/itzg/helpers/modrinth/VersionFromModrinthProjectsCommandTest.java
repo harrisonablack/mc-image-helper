@@ -10,6 +10,10 @@ import com.github.stefanbirkner.systemlambda.SystemLambda;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 
+import me.itzg.helpers.LatchingExecutionExceptionHandler;
+import me.itzg.helpers.McImageHelper;
+import me.itzg.helpers.errors.InvalidParameterException;
+
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -152,6 +156,24 @@ class VersionFromModrinthProjectsCommandTest {
         });
 
         assertThat(out).isEqualToNormalizingNewlines("1.21.4\n");
+    }
+
+    @Test
+    void testCommandHanlesEmptyProjects() throws Exception {
+
+        final LatchingExecutionExceptionHandler exceptionHandler = new LatchingExecutionExceptionHandler();
+
+        new CommandLine(new McImageHelper())
+            .setExecutionExceptionHandler(exceptionHandler)
+            .execute(
+                "--debug",
+                 "version-from-modrinth-projects",
+                "--projects="
+                );
+
+        assertThat(exceptionHandler.getExecutionException())
+            .isInstanceOf(InvalidParameterException.class)
+            .hasMessageContaining("No Modrinth projects parsed successfully, please ensure projects follow \"<loader>:<project ID>|<slug>\" and are delimited by commas");
     }
 
     @Test

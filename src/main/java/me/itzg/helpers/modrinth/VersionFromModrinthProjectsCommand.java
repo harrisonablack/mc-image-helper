@@ -63,6 +63,11 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+
+        if (projects == null || projects.isEmpty()) {
+            throw new InvalidParameterException("No Modrinth projects provided, please provide at least one Modrinth project");
+        }
+
         try (ModrinthApiClient modrinthApiClient = new ModrinthApiClient(baseUrl, "modrinth", sharedFetchArgs.options())) {
             final String version = versionFromProjects(modrinthApiClient, projects, loader, defaultVersionType);
 

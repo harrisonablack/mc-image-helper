@@ -177,6 +177,19 @@ class VersionFromModrinthProjectsCommandTest {
     }
 
     @Test
+    void testCommandHandlesNullProjects() throws Exception {
+        final LatchingExecutionExceptionHandler exceptionHandler = new LatchingExecutionExceptionHandler();
+
+        new CommandLine(new McImageHelper())
+            .setExecutionExceptionHandler(exceptionHandler)
+            .execute("version-from-modrinth-projects");
+
+        assertThat(exceptionHandler.getExecutionException())
+            .isInstanceOf(InvalidParameterException.class)
+            .hasMessageContaining("No Modrinth projects provided, please provide at least one Modrinth project");
+    }
+
+    @Test
     void testCommandWithProjectQualifiers(WireMockRuntimeInfo wmInfo) throws Exception {
 
         stubGetProjects("viaversion", "viabackwards", "griefprevention", "discordsrv");

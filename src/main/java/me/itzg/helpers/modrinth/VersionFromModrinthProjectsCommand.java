@@ -123,7 +123,8 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                     ? projectRef.getVersionType()
                     : defaultVersionType;
 
-                return modrinthApiClient.resolveProjectGameVersions(projectRef, loader, null, allowedVersionType);
+                return modrinthApiClient.resolveProjectGameVersions(projectRef, loader, null, allowedVersionType)
+                    .onErrorMap(error -> new GenericException("Failed to resolve project version for " + projectRef.getIdOrSlug()));
             })
             .collectList()
             .block();

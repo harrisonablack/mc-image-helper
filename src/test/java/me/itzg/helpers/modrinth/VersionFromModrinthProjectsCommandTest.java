@@ -166,7 +166,6 @@ class VersionFromModrinthProjectsCommandTest {
         new CommandLine(new McImageHelper())
             .setExecutionExceptionHandler(exceptionHandler)
             .execute(
-                "--debug",
                  "version-from-modrinth-projects",
                 "--projects="
                 );

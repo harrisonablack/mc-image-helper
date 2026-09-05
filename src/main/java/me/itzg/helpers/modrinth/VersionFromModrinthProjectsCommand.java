@@ -114,14 +114,14 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
             .block();
 
         if (allGameVersions != null) {
-            return processGameVersions(allGameVersions);
+            return processGameVersions(allGameVersions, effectiveRefs);
         }
         else {
             throw new GenericException("Unable to retrieve game versions for projects " + projectRefs);
         }
     }
 
-    static String processGameVersions(List<List<String>> allGameVersions) {
+    static String processGameVersions(List<List<String>> allGameVersions, List<ProjectRef> projects) {
 
         final Map<String, int[]> gameVersionPositions = new HashMap<>();
         final Set<String> loggedBlockedVersions = new HashSet<>();
@@ -169,7 +169,11 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
 
                         if (!blockingProjects.isEmpty()) {
                             loggedBlockedVersions.add(version);
-                            log.debug("Minecraft version {} is blocked by project indexes {}", version, blockingProjects);
+                            log.debug("Minecraft version {} is blocked by projects {}", version, 
+                                    blockingProjects.stream()
+                                    .map(projects::get)
+                                    .map(p -> p.getIdOrSlug())
+                                    .collect(Collectors.toList()));
                         }
                     }
                 }

@@ -124,7 +124,7 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
                     : defaultVersionType;
 
                 return modrinthApiClient.resolveProjectGameVersions(projectRef, loader, null, allowedVersionType)
-                    .onErrorMap(error -> new GenericException("Failed to resolve project version for " + projectRef.getIdOrSlug()));
+                    .onErrorMap(error -> new GenericException("Failed to resolve project version for " + projectRef.getIdOrSlug(), error));
             })
             .collectList()
             .block();

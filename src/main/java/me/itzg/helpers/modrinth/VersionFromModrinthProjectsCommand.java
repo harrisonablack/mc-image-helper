@@ -8,12 +8,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import me.itzg.helpers.errors.GenericException;
+import me.itzg.helpers.errors.InvalidParameterException;
 import me.itzg.helpers.http.SharedFetchArgs;
 import me.itzg.helpers.modrinth.model.VersionType;
 import picocli.CommandLine.ArgGroup;
@@ -75,11 +77,19 @@ public class VersionFromModrinthProjectsCommand implements Callable<Integer> {
         }
     }
 
-    static String versionFromProjects(ModrinthApiClient modrinthApiClient, List<String> projectRefs, Loader defaultLoader, VersionType defaultVersionType) {
+    static String versionFromProjects(ModrinthApiClient modrinthApiClient, List<String> projectRefs, Loader defaultLoader, VersionType defaultVersionType) throws InvalidParameterException {
         // Parse all refs and separate optional from required
         final List<ProjectRef> allRefs = projectRefs.stream()
+            .filter(Objects::nonNull)
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
             .map(ProjectRef::parse)
+            .distinct()
             .collect(Collectors.toList());
+
+        if (allRefs.isEmpty()) {
+            throw new InvalidParameterException("No Modrinth projects parsed successfully, please ensure projects follow \"<loader>:<project ID>|<slug>\" and are delimited by commas");
+        }
 
         final List<ProjectRef> requiredRefs = allRefs.stream()
             .filter(ref -> !ref.isOptional())
